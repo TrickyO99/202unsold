@@ -1,0 +1,116 @@
+#!/usr/bin/python3
+# coding : utf-8
+
+import sys
+from argparse import ArgumentParser
+from math import pow
+
+ERROR_CODE_STATUS = 84
+ELEM_SEP, LINE_SEP = '\t', '\n'
+
+def argument_parsing():
+    try:
+        parser = ArgumentParser()
+        parser.add_argument('a', type=int, help='constant computed from the past results')
+        parser.add_argument('b', type=int, help='constant computed from the past results')
+        args = parser.parse_args()
+    except SystemExit:
+        if len(sys.argv) == 2 and sys.argv[1] == "-h":
+            sys.exit(0)
+        else:
+            sys.exit(ERROR_CODE_STATUS)
+    if args.a <= 50 or args.b <= 50:
+        print("a and b must be integers greater than 50.", file=sys.stderr)
+        sys.exit(ERROR_CODE_STATUS)
+    return args
+
+def get_probability(a, b, x, y):
+    return ((a - x) * (b - y)) / ((5 * a - 150) * (5 * b - 150))
+
+def display_joint_law_array(a, b, prices):
+    displayed_table = []
+    x_law, y_law = [], []
+
+    displayed_table.append("{}{}".format('', ELEM_SEP))
+    displayed_table.extend(["X={}{}".format(x, ELEM_SEP) for x in prices])
+    displayed_table.append("Y law{}".format(LINE_SEP))
+    for y in prices:
+        yl = []
+
+        displayed_table.append("Y={}{}".format(y, ELEM_SEP))
+        for x in prices:
+            probability = get_probability(a, b, x, y)
+
+            displayed_table.append("{:.3f}{}".format(probability, ELEM_SEP))
+            yl.append(probability)
+        y_law.append(sum(yl))
+        displayed_table.append("{:.3f}{}".format(y_law[-1], LINE_SEP))
+
+    displayed_table.append("X law{}".format(ELEM_SEP))
+    x_law = [sum([get_probability(a, b, x, y) for y in prices]) for x in prices]
+    displayed_table.extend(["{:.3f}{}".format(xl, ELEM_SEP) for xl in x_law])
+    displayed_table.append("1{}".format(LINE_SEP))
+
+    print(''.join(displayed_table), end='')
+    return x_law, y_law
+
+def display_sum_joint_law(a, b, sum_prices):
+    displayed_table = []
+    z_joint_law = []
+    X, Y = 10, 10
+
+    displayed_table.append("z{}".format(ELEM_SEP))
+    displayed_table.extend(["{}{}".format(z, ELEM_SEP) for z in sum_prices])
+    displayed_table.append("total{}".format(LINE_SEP))
+    displayed_table.append("p(Z=z){}".format(ELEM_SEP))
+
+    while X <= 50 and Y <= 50:
+        x, y, result = X, Y, 0
+
+        while (X, Y) != (y, x):
+            result += get_probability(a, b, x, y)
+            x, y = x + 10, y - 10
+        z_joint_law.append(result + get_probability(a, b, x, y))
+        displayed_table.append("{:.3f}{}".format(z_joint_law[-1], ELEM_SEP))
+
+        if Y != 50:
+            Y += 10
+        else:
+            X += 10
+    displayed_table.append("1{}".format(LINE_SEP))
+
+    print(''.join(displayed_table), end='')
+    return z_joint_law
+
+def display_expected_and_variance(var, coef, data):
+    expected_value, variance = 0, 0
+
+    for c, d in zip(coef, data):
+        expected_value += c * d
+        variance += pow(c, 2) * d
+
+    variance -= pow(expected_value, 2)
+
+    print("expected value of {}:{}{:.1f}".format(var, ELEM_SEP, expected_value), end=LINE_SEP)
+    print("variance of {}:{}{:.1f}".format(var, ELEM_SEP * 2, variance), end=LINE_SEP)
+
+def main(args):
+    line = '-' * 60
+    prices = (10, 20, 30, 40, 50)
+    sum_prices = (20, 30, 40, 50, 60, 70, 80, 90, 100)
+
+    print(line)
+    x_law, y_law = display_joint_law_array(args.a, args.b, prices)
+    print(line)
+    z_law = display_sum_joint_law(args.a, args.b, sum_prices)
+    print(line)
+    display_expected_and_variance('X', prices, x_law)
+    display_expected_and_variance('Y', prices, y_law)
+    display_expected_and_variance('Z', sum_prices, z_law)
+    print(line)
+
+if __name__ == "__main__":
+    args = argument_parsing()
+
+    main(args)
+    sys.exit(0)
